@@ -1,0 +1,10 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+  "name": "window-linear-transformer",
+  "version": "0.15.2",
+  "dependencies": [
+    "cli",
+    "tabulate",
+    "nlohmann-json"
+  ]
+}
