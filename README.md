@@ -1,12 +1,12 @@
 # WindowLinearTransformer
 Simple command line tool to resize / reposition window on Windows
 
-
 ### Usage
 
-Create a `profiles.json` under the dir of this program.
+Create a `profiles.json` under the dir of this program as follow(remove the comments) :
 
 ```jsonc
+[
 {
     //profile id
     "id": "[ID]",
@@ -33,6 +33,12 @@ Create a `profiles.json` under the dir of this program.
         "height": 10
     }
 }
+//add more profiles...
+]
 ```
 
 Enter `help` to view avaliable command.
+
+
+### Remark
+For Non-ASCII characters, you need to turn on `Beta: Use Unicode UTF-8 for worldwide language support` in Region -> Administrative
