@@ -41,4 +41,5 @@ Enter `help` to view avaliable command.
 
 
 ### Remark
-For Non-ASCII characters, you need to turn on `Beta: Use Unicode UTF-8 for worldwide language support` in Region -> Administrative
+- For Non-ASCII characters, you need to turn on `Beta: Use Unicode UTF-8 for worldwide language support` in Region -> Administrative
+- You may see `AdjustTokenPrivileges failed: Not all privileges or groups referenced are assigned to the caller.` if you are not opening this program with admin privilege. Some of the programs need admin privilege to transform.

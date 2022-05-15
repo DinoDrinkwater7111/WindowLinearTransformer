@@ -97,12 +97,11 @@ namespace WLT {
 		const auto hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, dwProcessId);
 		if (hProcess == NULL) {
 			const auto errorCode = GetLastError();
-			//std::cout << ("OpenProcess failed: " + std::system_category().message(errorCode)) << std::endl;
-			return "";
+			throw WLT::exception("OpenProcess failed: " + std::system_category().message(errorCode));
 		}
 		if (0 == GetModuleBaseNameA(hProcess, 0, buffer.get(), BUFFER_SIZE)) {
 			const auto errorCode = GetLastError();
-			//std::cout << "GetModuleBaseNameA failed: " + std::system_category().message(errorCode) << std::endl;
+			throw WLT::exception("GetModuleBaseNameA failed: " + std::system_category().message(errorCode));
 			return "";
 		}
 		CloseHandle(hProcess);
