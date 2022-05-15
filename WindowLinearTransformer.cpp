@@ -20,6 +20,42 @@ namespace WLT {
 		exception(std::string message) :std::exception(message.c_str()) {}
 	};
 
+	void EnableDebugPrivilege()
+	{
+		HANDLE hToken;
+		const auto hProcess = GetCurrentProcess();
+		if (!OpenProcessToken(hProcess, TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) {
+			const auto errorCode = GetLastError();
+			std::cout << ("OpenProcessToken failed: " + std::system_category().message(errorCode)) << std::endl;
+			return;
+		}
+
+		LUID luid;
+		if (!LookupPrivilegeValueA(NULL, "SeDebugPrivilege", &luid))
+		{
+			const auto errorCode = GetLastError();
+			std::cout << ("LookupPrivilegeValueA failed: " + std::system_category().message(errorCode)) << std::endl;
+			return;
+		}
+
+		TOKEN_PRIVILEGES tp;
+		tp.PrivilegeCount = 1;
+		tp.Privileges[0].Luid = luid;
+		tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+		if (!AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), (PTOKEN_PRIVILEGES)NULL, (PDWORD)NULL))
+		{
+			const auto errorCode = GetLastError();
+			std::cout << ("AdjustTokenPrivileges failed: " + std::system_category().message(errorCode)) << std::endl;
+			return;
+		}
+
+		if (GetLastError() == ERROR_NOT_ALL_ASSIGNED)
+		{
+			std::cout << ("AdjustTokenPrivileges failed: " + std::system_category().message(ERROR_NOT_ALL_ASSIGNED)) << std::endl;
+			return;
+		}
+	}
 
 	BOOL CALLBACK EnumFunc(HWND hwnd, LPARAM cbPtr) {
 		const auto cb = (std::function<BOOL(HWND)>*)cbPtr;
@@ -32,10 +68,9 @@ namespace WLT {
 			windowHWNDs.push_back(hwnd);
 			return TRUE;
 		};
-		const auto isSuccess = EnumWindows(EnumFunc, reinterpret_cast<LPARAM>(&enumCb));
-		if (!isSuccess) {
+		if (!EnumWindows(EnumFunc, reinterpret_cast<LPARAM>(&enumCb))) {
 			const auto errorCode = GetLastError();
-			throw WLT::exception("ListWindowHWND Failed: " + std::system_category().message(errorCode));
+			throw WLT::exception("ListWindowHWND failed: " + std::system_category().message(errorCode));
 		}
 		return windowHWNDs;
 	}
@@ -43,10 +78,9 @@ namespace WLT {
 	std::string GetWindowTitile(HWND windowHWND) {
 		constexpr auto BUFFER_SIZE = 4096;
 		const auto buffer = std::make_unique<char[]>(BUFFER_SIZE);
-		const auto isSuccess = GetWindowTextA(windowHWND, buffer.get(), BUFFER_SIZE);
-		if (!isSuccess) {
+		if (!GetWindowTextA(windowHWND, buffer.get(), BUFFER_SIZE)) {
 			const auto errorCode = GetLastError();
-			throw WLT::exception("GetWindowTitile Failed: " + std::system_category().message(errorCode));
+			throw WLT::exception("GetWindowTitile failed: " + std::system_category().message(errorCode));
 		}
 		return buffer.get();
 	}
@@ -60,13 +94,19 @@ namespace WLT {
 	std::string GetProcessFileName(DWORD dwProcessId) {
 		constexpr auto BUFFER_SIZE = 4096;
 		const auto buffer = std::make_unique<char[]>(BUFFER_SIZE);
-		const auto processHandle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwProcessId);
-		const auto fileNameLength = GetModuleBaseNameA(processHandle, NULL, buffer.get(), BUFFER_SIZE);
-		CloseHandle(processHandle);
-		if (fileNameLength == 0) {
+		const auto hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, dwProcessId);
+		if (hProcess == NULL) {
 			const auto errorCode = GetLastError();
+			//std::cout << ("OpenProcess failed: " + std::system_category().message(errorCode)) << std::endl;
 			return "";
 		}
+		if (0 == GetModuleBaseNameA(hProcess, 0, buffer.get(), BUFFER_SIZE)) {
+			const auto errorCode = GetLastError();
+			//std::cout << "GetModuleBaseNameA failed: " + std::system_category().message(errorCode) << std::endl;
+			return "";
+		}
+		CloseHandle(hProcess);
+
 		return buffer.get();
 	}
 
@@ -115,7 +155,7 @@ namespace WLT {
 			const auto pathLength = GetModuleFileNameA(NULL, buffer.get(), BUFFER_SIZE);
 			if (pathLength == 0) {
 				const auto errorCode = GetLastError();
-				out << "GetModuleFileNameA Error: " + std::system_category().message(errorCode);
+				out << "GetModuleFileNameA failed: " + std::system_category().message(errorCode);
 				return;
 			}
 			currentpath = buffer.get();
@@ -233,10 +273,9 @@ namespace WLT {
 				auto uFlags = SWP_NOZORDER;
 				if (x < 0 || y < 0) uFlags |= SWP_NOMOVE;
 				if (width < 0 || height < 0) uFlags |= SWP_NOSIZE;
-				const auto isSuccess = SetWindowPos(windowHWND, NULL, x, y, width, height, uFlags);
-				if (!isSuccess) {
+				if (!SetWindowPos(windowHWND, NULL, x, y, width, height, uFlags)) {
 					const auto errorCode = GetLastError();
-					out << "SetWindowPos Failed: " + std::system_category().message(errorCode) << std::endl;
+					out << "SetWindowPos failed: " + std::system_category().message(errorCode) << std::endl;
 				}
 				return;
 			}
@@ -251,6 +290,7 @@ namespace WLT {
 	void StartCli()
 	{
 		SetConsoleOutputCP(65001);
+		EnableDebugPrivilege();
 		cli::SetColor();
 		auto rootMenu = std::make_unique<cli::Menu>("cli");
 		rootMenu->Insert(
