@@ -57,22 +57,15 @@ namespace WLT {
 		return dwProcessId;
 	}
 
-	HANDLE GetProcessHandle(DWORD dwProcessId) {
-		auto processHandle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | SYNCHRONIZE, FALSE, dwProcessId);
-		if (processHandle == NULL) {
-			const auto errorCode = GetLastError();
-			throw WLT::exception("GetProcessHandle Failed: " + std::system_category().message(errorCode));
-		}
-		return processHandle;
-	}
-
-	std::string GetProcessFileName(HANDLE processHandle) {
+	std::string GetProcessFileName(DWORD dwProcessId) {
 		constexpr auto BUFFER_SIZE = 4096;
 		const auto buffer = std::make_unique<char[]>(BUFFER_SIZE);
+		const auto processHandle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwProcessId);
 		const auto fileNameLength = GetModuleBaseNameA(processHandle, NULL, buffer.get(), BUFFER_SIZE);
+		CloseHandle(processHandle);
 		if (fileNameLength == 0) {
 			const auto errorCode = GetLastError();
-			throw WLT::exception("GetProcessFileName Failed: " + std::system_category().message(errorCode));
+			return "";
 		}
 		return buffer.get();
 	}
@@ -94,8 +87,7 @@ namespace WLT {
 					const auto title = WLT::GetWindowTitile(windowHWND);
 					if (!std::regex_search(title, titleRx)) continue;
 					const auto dwProcessId = WLT::GetWindowProcessId(windowHWND);
-					const auto processHandle = WLT::GetProcessHandle(dwProcessId);
-					const auto processFileName = WLT::GetProcessFileName(processHandle);
+					const auto processFileName = WLT::GetProcessFileName(dwProcessId);
 					table.add_row({ title, processFileName, std::to_string(dwProcessId) });
 				}
 				catch (WLT::exception&) {
@@ -234,8 +226,7 @@ namespace WLT {
 			try {
 				const auto title = WLT::GetWindowTitile(windowHWND);
 				const auto dwProcessId = WLT::GetWindowProcessId(windowHWND);
-				const auto processHandle = WLT::GetProcessHandle(dwProcessId);
-				const auto processFileName = WLT::GetProcessFileName(processHandle);
+				const auto processFileName = WLT::GetProcessFileName(dwProcessId);
 				if (!processNameRx._Empty() && !std::regex_search(title, processNameRx)) continue;
 				if (!windowTitleRx._Empty() && !std::regex_search(title, windowTitleRx)) continue;
 				if (pid > 0 && pid != dwProcessId) continue;
